@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- Важно для телефонов: масштабирование и ширина подстраиваются под экран -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Valentine — мобильная версия</title>
+    <style>
+        /* Обнуление и базовые настройки */
+        * {
+            box-sizing: border-box;
+            image-rendering: pixelated; /* пиксельный шарм */
+        }
+
+        body {
+            margin: 0;
+            font-family: monospace;
+            overflow: hidden;           /* отключаем скролл, фон внутри */
+            background: #87c5ff;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;             /* для мобильных чтобы не скроллилось */
+            touch-action: pan-y pinch-zoom; /* разрешаем только вертикальные жесты, но фон не сдвинется */
+        }
+
+        /* Падающие элементы (сердечки, цветочки) */
+        .background span {
+            position: absolute;
+            animation: fall linear infinite;
+            pointer-events: none;        /* чтобы не мешали нажатиям */
+            user-select: none;
+            will-change: transform;
+        }
+
+        @keyframes fall {
+            from { transform: translateY(-10vh); }
+            to   { transform: translateY(110vh); }
+        }
+
+        /* Центрирование всего контента */
+        .center {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;               /* отступы по краям */
+            position: relative;
+            pointer-events: none;         /* фон не ловит клики */
+        }
+
+        .center > * {
+            pointer-events: auto;         /* все внутренние элементы кликабельны */
+        }
+
+        /* ПИКСЕЛЬНЫЙ КОНВЕРТ — адаптивный */
+        .envelope {
+            position: relative;
+            width: min(360px, 85vw);      /* на узких экранах не больше 85% ширины */
+            height: auto;                  /* высота подстраивается под контент */
+            background: #e5e5e5;
+            border: 8px solid #000;
+            box-shadow: 8px 8px 0 #000;    /* чуть меньше тень для мобил */
+            text-align: center;
+            padding: 1.5rem 1rem 1.2rem;    /* внутренние отступы */
+            margin: 0 auto;
+        }
+
+        /* пиксельная крышка — подстраиваем под ширину конверта */
+        .lid {
+            position: absolute;
+            top: -70px;                    /* фиксируем над конвертом */
+            left: -8px;                    /* компенсируем border конверта */
+            width: calc(100% + 16px);       /* ширина = конверт + 2*border */
+            height: 70px;
+            background:
+                linear-gradient(135deg, #dcdcdc 25%, transparent 25%) -20px 0,
+                linear-gradient(225deg, #dcdcdc 25%, transparent 25%) -20px 0,
+                linear-gradient(315deg, #dcdcdc 25%, transparent 25%),
+                linear-gradient(45deg, #dcdcdc 25%, transparent 25%);
+            background-size: 40px 40px;
+            background-color: #dcdcdc;
+            border: 8px solid #000;
+            box-sizing: content-box;        /* чтобы бордер не менял размер */
+        }
+
+        /* Пиксельное сердечко */
+        .heart {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;                /* чуть меньше для экранов */
+            line-height: 1;
+            text-shadow: 4px 4px 0 #000;    /* пиксельная тень */
+        }
+
+        /* Вопрос внутри конверта */
+        #question {
+            font-size: clamp(1.2rem, 5vw, 2rem); /* адаптивный размер текста */
+            margin: 0.5rem 0 1.2rem 0;
+            word-break: break-word;
+        }
+
+        /* Кнопки */
+        button {
+            padding: 12px 24px;            /* более крупная область касания */
+            margin: 8px 10px;
+            border: none;
+            font-family: monospace;
+            font-size: clamp(1rem, 4vw, 1.4rem);
+            cursor: pointer;
+            background: #3cab3c;
+            color: white;
+            box-shadow: 5px 5px 0 #000;
+            transition: all 0.05s ease;
+            border: 2px solid black;        /* добавим контраст */
+            min-width: 100px;                /* минимальная ширина */
+            touch-action: manipulation;       /* отключаем двойное увеличение на кнопках */
+        }
+
+        button:active {
+            transform: translate(4px, 4px);
+            box-shadow: 1px 1px 0 #000;
+        }
+
+        /* Кнопка "Нет" — убегающая */
+        .no {
+            background: #777;
+            position: absolute !important;    /* чтобы двигалась относительно body */
+            left: 50%;                         /* начальная позиция по центру (приблизительно) */
+            top: 60%;
+            transform: translate(-50%, -50%);
+            transition: left 0.1s ease, top 0.1s ease; /* плавное движение */
+            will-change: left, top;
+            z-index: 1000;
+            max-width: 120px;
+            text-align: center;
+            white-space: nowrap;
+            /* убираем translate при сдвиге через left/top, но оставим для центрирования в начале */
+        }
+
+        /* Карточка после "Да" */
+        .card {
+            background: #fff;
+            border: 8px solid #000;
+            padding: 1.8rem 1.2rem;
+            box-shadow: 12px 12px 0 #000;
+            max-width: 90vw;
+            width: 460px;
+            text-align: center;
+            margin: 16px;
+        }
+
+        .card p {
+            font-size: clamp(1rem, 4vw, 1.4rem);
+            line-height: 1.6;
+            margin: 1.2rem 0;
+        }
+
+        .next {
+            margin-top: 20px;
+            font-size: 2rem;
+            padding: 10px 30px;
+            background: #3cab3c;
+        }
+
+        /* мелкая кнопка да/нет на мобилках может выходить за пределы — исправляем */
+        .envelope button {
+            display: inline-block;
+            width: auto;
+            min-width: 100px;
+        }
+
+        /* на случай если кнопка "нет" исчезает */
+        .no[style*="display: none"] + #question {
+            /* стили если нужно */
+        }
+
+        /* адаптация для совсем маленьких */
+        @media (max-width: 420px) {
+            .envelope {
+                padding: 1rem 0.5rem 1rem;
+            }
+            button {
+                padding: 10px 16px;
+                min-width: 80px;
+            }
+            .lid {
+                top: -60px;
+                height: 60px;
+            }
+            .heart {
+                top: -32px;
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="background" id="bg"></div>
+
+<div class="center" id="main">
+    <div class="envelope" id="envelope">
+        <div class="lid"></div>
+        <div class="heart">❤️</div>
+
+        <h2 id="question">Будешь моей валентинкой?</h2>
+
+        <button onclick="accept()">Да</button>
+        <button class="no" id="noBtn">Нет</button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- ПАДАЮЩИЙ ФОН (сердечки и цветы) ----------
+        const icons = ["❤️","💖","🌸","🌷","💐","💕","🌺"];
+        const bg = document.getElementById("bg");
+
+        for (let i = 0; i < 35; i++) {
+            let span = document.createElement("span");
+            span.innerHTML = icons[Math.floor(Math.random() * icons.length)];
+            span.style.left = Math.random() * 100 + "%";
+            span.style.animationDuration = (5 + Math.random() * 10) + "s";
+            span.style.fontSize = (20 + Math.random() * 28) + "px";
+            // небольшой разброс задержки, чтобы не все сразу
+            span.style.animationDelay = (Math.random() * 5) + "s";
+            bg.appendChild(span);
+        }
+
+        // ---------- УБЕГАЮЩАЯ КНОПКА ДЛЯ ТЕЛЕФОНА (touch + мышь) ----------
+        const noBtn = document.getElementById("noBtn");
+        let escapes = 0;
+        let isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+        // Функция для безопасного перемещения кнопки (учитывает границы экрана)
+        function moveButtonAwayFrom(clientX, clientY) {
+            if (!noBtn || noBtn.style.display === 'none') return;
+
+            const btnRect = noBtn.getBoundingClientRect();
+            const btnCenterX = btnRect.left + btnRect.width / 2;
+            const btnCenterY = btnRect.top + btnRect.height / 2;
+
+            // Рассчитываем расстояние от точки касания/курсора до центра кнопки
+            const dist = Math.hypot(clientX - btnCenterX, clientY - btnCenterY);
+
+            // Если подошли слишком близко
+            if (dist < 120) {
+                // Новые координаты в пределах видимой области с запасом
+                const maxX = window.innerWidth - btnRect.width - 20;  // не прижимаем к правому краю
+                const maxY = window.innerHeight - btnRect.height - 20;
+                const minX = 20;
+                const minY = 60; // чтобы не улетала под шапку
+
+                let newX = Math.random() * (maxX - minX) + minX;
+                let newY = Math.random() * (maxY - minY) + minY;
+
+                // Применяем координаты
+                noBtn.style.left = newX + 'px';
+                noBtn.style.top = newY + 'px';
+                // Убираем трансформацию, которая могла быть от центрирования
+                noBtn.style.transform = 'none';
+
+                escapes++;
+
+                // После 7 побегов заменяем текст и прячем кнопку
+                if (escapes > 7) {
+                    noBtn.style.display = "none";
+                    document.getElementById("question").innerText = "Ладно ладно 😄 выбора нет";
+                }
+            }
+        }
+
+        // Универсальная функция для touch и mouse
+        function handleInteraction(e) {
+            e.preventDefault();  // для touch чтобы не было скролла или зума
+            let clientX, clientY;
+
+            if (e.touches) {
+                // touch событие
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                // mouse событие
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            moveButtonAwayFrom(clientX, clientY);
+        }
+
+        // Вешаем обработчики на document для отслеживания движений пальца/мыши
+        document.addEventListener('mousemove', handleInteraction);
+        document.addEventListener('touchmove', handleInteraction, { passive: false });
+        // также на touchstart сразу проверяем, чтобы если палец появился рядом — убежала
+        document.addEventListener('touchstart', handleInteraction, { passive: false });
+
+        // Дополнительно: при клике на "нет" тоже перемещаем (на случай если нажали)
+        noBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Принудительно считаем побег и двигаем
+            escapes++; // увеличим счётчик
+            if (escapes > 7) {
+                noBtn.style.display = "none";
+                document.getElementById("question").innerText = "Ладно ладно 😄 выбора нет";
+                return;
+            }
+            // двигаем в случайное место
+            const btnRect = noBtn.getBoundingClientRect();
+            const maxX = window.innerWidth - btnRect.width - 20;
+            const maxY = window.innerHeight - btnRect.height - 20;
+            const minX = 20, minY = 60;
+            noBtn.style.left = Math.random() * (maxX - minX) + minX + 'px';
+            noBtn.style.top = Math.random() * (maxY - minY) + minY + 'px';
+            noBtn.style.transform = 'none';
+        });
+
+        // ---------- ДА ----------
+        window.accept = function() {
+            document.getElementById("main").innerHTML = `
+            <div class="card">
+                <h2>Поздравляю!</h2>
+                <p>
+                С днём смерти Чикатило<br>
+                С днём случайно найденных денег<br>
+                С днём существования котов<br>
+                С днём когда всё не так плохо
+                </p>
+                <button class="next" onclick="nextPage()">➜</button>
+            </div>`;
+        };
+
+        // ВТОРАЯ СТРАНИЦА
+        window.nextPage = function() {
+            document.getElementById("main").innerHTML = `
+            <div class="card">
+                <h2>С Днём святого Валентина 🤍</h2>
+                <p>
+                Мы знакомы всего месяц,<br>
+                но я правда рад, что он прошёл именно так.
+                <br><br>
+                Спасибо тебе за общение, лёгкость
+                и то спокойствие, которое появляется рядом с тобой.
+                <br><br>
+                Пусть впереди будет ещё много хороших моментов.
+                </p>
+            </div>`;
+        };
+
+        // Корректировка начальной позиции кнопки "Нет" на мобильных
+        // Чтобы она не наезжала на "Да" сразу
+        window.addEventListener('load', function() {
+            if (noBtn) {
+                // Ставим в более-менее безопасное место (ниже и правее)
+                const envelope = document.querySelector('.envelope');
+                if (envelope) {
+                    const envRect = envelope.getBoundingClientRect();
+                    // Попытаемся разместить справа внизу конверта, но в пределах экрана
+                    let leftPos = envRect.right - 120; // приблизительно
+                    let topPos = envRect.bottom - 80;
+
+                    // Проверка границ
+                    if (leftPos + 100 > window.innerWidth) leftPos = window.innerWidth - 140;
+                    if (leftPos < 20) leftPos = 40;
+                    if (topPos + 60 > window.innerHeight) topPos = window.innerHeight - 100;
+                    if (topPos < 60) topPos = envRect.top + 50;
+
+                    noBtn.style.left = leftPos + 'px';
+                    noBtn.style.top = topPos + 'px';
+                    noBtn.style.transform = 'none';
+                }
+            }
+        });
+
+        // Также при изменении ориентации пересчитывать не будем, оставим так.
+        // Если кнопка уедет за край — обработчик сам её скорректирует.
+    })();
+</script>
+</body>
+</html>
